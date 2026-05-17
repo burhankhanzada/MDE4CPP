@@ -38,13 +38,13 @@ inline std::shared_ptr<BaseElement> BaseAnyTemplate<T>::getAsBaseElement() const
 	{
 		try
 		{
-			returnValue = this->get<std::shared_ptr<BaseElement>>();
+			returnValue = this->template get<std::shared_ptr<BaseElement>>();
 		}
 		catch(...){}
 	}
 	if(!returnValue)
 	{
-		T anyValue=this->get<T>();
+		T anyValue=this->template get<T>();
 		returnValue = std::dynamic_pointer_cast<BaseElement>(anyValue);
 	}
 	if(!returnValue)

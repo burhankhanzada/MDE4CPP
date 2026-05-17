@@ -40,13 +40,13 @@ inline std::shared_ptr<Bag<uml::Element>> uml::UMLContainerAnyTemplate<T>::getAs
 	{
 		try
 		{
-			returnContainer = this->get<std::shared_ptr<Bag<uml::Element>>>();
+			returnContainer = this->template get<std::shared_ptr<Bag<uml::Element>>>();
 		}
 		catch(...){}
 	}
 	if(!returnContainer)
 	{
-		T anyValue=this->get<T>();
+		T anyValue=this->template get<T>();
 		
 		returnContainer = std::make_shared<Bag<uml::Element>>();
 		for(auto anyElement : *anyValue)

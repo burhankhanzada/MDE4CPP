@@ -35,3 +35,4 @@ includeBuild 'gradlePlugins'
 //includeBuild 'src/examples/'  // Temporarily disabled - examples have plugin issues
 //includeBuild 'generator'
 //includeBuild './src_gen'
+

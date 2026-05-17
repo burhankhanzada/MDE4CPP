@@ -40,13 +40,13 @@ inline std::shared_ptr<ecore::EObject> ecore::EcoreAnyTemplate<T>::getAsEObject(
 	{
 		try
 		{
-			returnValue = this->get<std::shared_ptr<ecore::EObject>>();
+			returnValue = this->template get<std::shared_ptr<ecore::EObject>>();
 		}
 		catch(...){}
 	}
 	if(!returnValue)
 	{
-		T anyValue=this->get<T>();
+		T anyValue=this->template get<T>();
 
 		returnValue = std::dynamic_pointer_cast<ecore::EObject>(anyValue);
 	}

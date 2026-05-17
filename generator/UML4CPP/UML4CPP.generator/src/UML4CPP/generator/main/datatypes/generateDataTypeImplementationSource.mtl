@@ -25,6 +25,7 @@
 [import UML4CPP::generator::main::components::generateDataType /]
 [import UML4CPP::generator::main::helpers::keywords /]
 [import UML4CPP::generator::main::model_execution::model_execution /]
+[import UML4CPP::generator::main::components::generateStructuralFeature /]
 
 [query private includes(aDataType : DataType)  : Set(Type) = OrderedSet
 {

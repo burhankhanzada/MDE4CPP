@@ -20,6 +20,7 @@
 [module generateFactoryImplementationSource('http://www.eclipse.org/uml2/5.0.0/UML')]
 
 [import UML4CPP::generator::main::components::generateClass /]
+[import UML4CPP::generator::main::components::generateStructuralFeature /]
 [import UML4CPP::generator::main::components::generateInterface /]
 [import UML4CPP::generator::main::components::generateProperty /]
 [import UML4CPP::generator::main::components::generateType /]

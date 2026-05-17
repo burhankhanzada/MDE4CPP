@@ -1,0 +1,12 @@
+task buildUml(dependsOn: ':src:uml:uml:buildUml') {
+    group = 'Uml'
+    description = 'build uml (aggregator)'
+}
+task compileUml(dependsOn: ':src:uml:uml:compileUml') {
+    group = 'Uml'
+    description = 'compile uml (aggregator)'
+}
+task generateUml(dependsOn: ':src:uml:uml:generateUml') {
+    group = 'Uml'
+    description = 'generate uml (aggregator)'
+}

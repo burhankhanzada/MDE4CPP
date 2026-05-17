@@ -334,7 +334,9 @@ task build[packageName.toUpperFirst()/]() {
 [/for]
 }
 [if hasCreateApiFlag()]
-tasks.getByPath('src_gen:compile[packageName.toUpperFirst()/]').mustRunAfter getRootProject().getTasksByName('deliverBoostLibray',true)
+if (file('src_gen' + File.separator + 'build.gradle').exists()) {
+	tasks.getByPath('src_gen:compile[packageName.toUpperFirst()/]Src').mustRunAfter getRootProject().getTasksByName('deliverBoostLibray',true)
+}
 [/if]
 [/file]
 

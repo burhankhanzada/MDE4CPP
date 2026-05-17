@@ -38,13 +38,13 @@ inline std::shared_ptr<Bag<BaseElement>> BaseContainerAnyTemplate<T>::getAsBaseE
 	{
 		try
 		{
-			returnContainer = this->get<std::shared_ptr<Bag<BaseElement>>>();
+			returnContainer = this->template get<std::shared_ptr<Bag<BaseElement>>>();
 		}
 		catch(...){}
 	}
 	if(!returnContainer)
 	{
-		T anyValue=this->get<T>();
+		T anyValue=this->template get<T>();
 		
 		returnContainer = std::make_shared<Bag<BaseElement>>();
 		
