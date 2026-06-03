@@ -1,78 +1,126 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# =============================================================================
+# installEclipse.sh — Download Eclipse Modeling Tools and install required
+# plugins (Acceleo, Sirius, CDT) for MDE4CPP on macOS.
+#
+# Required environment variables (set by Gradle runInstallScripts):
+#   MDE4CPP_HOME
+#   MDE4CPP_ECLIPSE_VERSION
+#   MDE4CPP_ECLIPSE_MILESTONE
+#   MDE4CPP_ECLIPSE_ACCELEO_VERSION
+#   MDE4CPP_ECLIPSE_SIRIUS_VERSION
+#   MDE4CPP_ECLIPSE_SIRIUS_ECLIPSE_VERSION
+#
+# Optional:
+#   MDE4CPP_ECLIPSE_HOME — overrides default Eclipse install location.
+#                          Defaults to /Applications/Eclipse.app/Contents/Eclipse
+# =============================================================================
+
 echo "[installEclipse] MDE4CPP_ECLIPSE_VERSION=${MDE4CPP_ECLIPSE_VERSION:-}"
 echo "[installEclipse] MDE4CPP_ECLIPSE_MILESTONE=${MDE4CPP_ECLIPSE_MILESTONE:-}"
 echo "[installEclipse] MDE4CPP_ECLIPSE_ACCELEO_VERSION=${MDE4CPP_ECLIPSE_ACCELEO_VERSION:-}"
 echo "[installEclipse] MDE4CPP_ECLIPSE_SIRIUS_VERSION=${MDE4CPP_ECLIPSE_SIRIUS_VERSION:-}"
 echo "[installEclipse] MDE4CPP_ECLIPSE_SIRIUS_ECLIPSE_VERSION=${MDE4CPP_ECLIPSE_SIRIUS_ECLIPSE_VERSION:-}"
 
-if [[ -z "${MDE4CPP_HOME:-}" ]]; then
-  echo "[installEclipse] ERROR: MDE4CPP_HOME is not set."
-  exit 1
-fi
-if [[ -z "${MDE4CPP_ECLIPSE_VERSION:-}" ]]; then
-  echo "[installEclipse] ERROR: MDE4CPP_ECLIPSE_VERSION is not set."
-  exit 1
-fi
-if [[ -z "${MDE4CPP_ECLIPSE_MILESTONE:-}" ]]; then
-  echo "[installEclipse] ERROR: MDE4CPP_ECLIPSE_MILESTONE is not set."
-  exit 1
-fi
-if [[ -z "${MDE4CPP_ECLIPSE_ACCELEO_VERSION:-}" ]]; then
-  echo "[installEclipse] ERROR: MDE4CPP_ECLIPSE_ACCELEO_VERSION is not set."
-  exit 1
-fi
-if [[ -z "${MDE4CPP_ECLIPSE_SIRIUS_VERSION:-}" ]]; then
-  echo "[installEclipse] ERROR: MDE4CPP_ECLIPSE_SIRIUS_VERSION is not set."
-  exit 1
-fi
-if [[ -z "${MDE4CPP_ECLIPSE_SIRIUS_ECLIPSE_VERSION:-}" ]]; then
-  echo "[installEclipse] ERROR: MDE4CPP_ECLIPSE_SIRIUS_ECLIPSE_VERSION is not set."
-  exit 1
+# ── Step 1: Validate required environment variables ──────────────────────────
+
+for var in MDE4CPP_HOME MDE4CPP_ECLIPSE_VERSION MDE4CPP_ECLIPSE_MILESTONE \
+           MDE4CPP_ECLIPSE_ACCELEO_VERSION MDE4CPP_ECLIPSE_SIRIUS_VERSION \
+           MDE4CPP_ECLIPSE_SIRIUS_ECLIPSE_VERSION; do
+  if [[ -z "${!var:-}" ]]; then
+    echo "[installEclipse] ERROR: ${var} is not set."
+    exit 1
+  fi
+done
+
+# ── Step 2: Resolve installation paths ───────────────────────────────────────
+#
+# MDE4CPP_ECLIPSE_HOME (set in macos_setenv.sh) points to the Eclipse plugins
+# directory inside the .app bundle:
+#   /Applications/Eclipse.app/Contents/Eclipse
+#
+# We derive all paths from it so the install script and macos_setenv.sh stay
+# in sync without using relative paths.
+
+if [[ -n "${MDE4CPP_ECLIPSE_HOME:-}" ]]; then
+  # e.g. /Applications/Eclipse.app/Contents/Eclipse → /Applications/Eclipse.app
+  ECLIPSE_APP_DIR="$(dirname "$(dirname "${MDE4CPP_ECLIPSE_HOME}")")"
+  ECLIPSE_HOME="${MDE4CPP_ECLIPSE_HOME}"
+else
+  ECLIPSE_APP_DIR="/Applications/Eclipse.app"
+  ECLIPSE_HOME="${ECLIPSE_APP_DIR}/Contents/Eclipse"
 fi
 
-MDE4CPP_PARENT="$(cd "${MDE4CPP_HOME}/.." && pwd)"
-TARGET_DIR="${MDE4CPP_PARENT}/eclipse"
-TMP_DIR="$(mktemp -d)"
-ARCHIVE_PATH="${TMP_DIR}/eclipse-modeling.tar.gz"
+ECLIPSE_BIN="${ECLIPSE_APP_DIR}/Contents/MacOS/eclipse"
+EXTRACT_DIR="$(dirname "${ECLIPSE_APP_DIR}")"
 
 ARCH_SUFFIX="x86_64"
 if [[ "$(uname -m)" == "arm64" ]]; then
   ARCH_SUFFIX="aarch64"
 fi
 
-ECLIPSE_ARCHIVE_URL="https://ftp.halifax.rwth-aachen.de/eclipse/technology/epp/downloads/release/${MDE4CPP_ECLIPSE_VERSION//[[:space:]]/}/${MDE4CPP_ECLIPSE_MILESTONE//[[:space:]]/}/eclipse-modeling-${MDE4CPP_ECLIPSE_VERSION//[[:space:]]/}-${MDE4CPP_ECLIPSE_MILESTONE//[[:space:]]/}-macosx-cocoa-${ARCH_SUFFIX}.tar.gz"
-ACCELEO_REPOSITORY_URL="https://download.eclipse.org/acceleo/updates/releases/${MDE4CPP_ECLIPSE_ACCELEO_VERSION//[[:space:]]/}"
-SIRIUS_REPOSITORY_URL="https://download.eclipse.org/sirius/updates/releases/${MDE4CPP_ECLIPSE_SIRIUS_VERSION//[[:space:]]/}/${MDE4CPP_ECLIPSE_SIRIUS_ECLIPSE_VERSION//[[:space:]]/}"
-CDT_REPOSITORY_URL="https://download.eclipse.org/releases/${MDE4CPP_ECLIPSE_VERSION//[[:space:]]/}"
+# Strip whitespace from version variables for URL construction.
+_VER="${MDE4CPP_ECLIPSE_VERSION//[[:space:]]/}"
+_MS="${MDE4CPP_ECLIPSE_MILESTONE//[[:space:]]/}"
+_ACC="${MDE4CPP_ECLIPSE_ACCELEO_VERSION//[[:space:]]/}"
+_SIR="${MDE4CPP_ECLIPSE_SIRIUS_VERSION//[[:space:]]/}"
+_SIRE="${MDE4CPP_ECLIPSE_SIRIUS_ECLIPSE_VERSION//[[:space:]]/}"
 
-cleanup() {
-  rm -rf "${TMP_DIR}"
-}
+ECLIPSE_ARCHIVE_URL="https://ftp.halifax.rwth-aachen.de/eclipse/technology/epp/downloads/release/${_VER}/${_MS}/eclipse-modeling-${_VER}-${_MS}-macosx-cocoa-${ARCH_SUFFIX}.tar.gz"
+ACCELEO_REPO_URL="https://download.eclipse.org/acceleo/updates/releases/${_ACC}"
+SIRIUS_REPO_URL="https://download.eclipse.org/sirius/updates/releases/${_SIR}/${_SIRE}"
+RELEASES_REPO_URL="https://download.eclipse.org/releases/${_VER}"
+CDT_REPO_URL="${RELEASES_REPO_URL}"
+
+TMP_DIR="$(mktemp -d)"
+ARCHIVE_PATH="${TMP_DIR}/eclipse-modeling.tar.gz"
+
+cleanup() { rm -rf "${TMP_DIR}"; }
 trap cleanup EXIT
 
-SKIP_DOWNLOAD=0
-if [[ -x "${TARGET_DIR}/Eclipse.app/Contents/MacOS/eclipse" ]]; then
-  echo "[installEclipse] Existing Eclipse installation found at ${TARGET_DIR}."
-  mkdir -p "${TMP_DIR}"
-  "${TARGET_DIR}/Eclipse.app/Contents/MacOS/eclipse" -nosplash -application org.eclipse.equinox.p2.director -listInstalledIU > "${TMP_DIR}/installed.txt" 2>&1 || true
-  echo "[installEclipse] Installed IU output:"
-  grep -E '^org\.eclipse\.(acceleo|sirius)\.' "${TMP_DIR}/installed.txt" || true
-  acceleo_version=$(grep -E '^org\.eclipse\.acceleo\.feature\.group[[:space:]]+' "${TMP_DIR}/installed.txt" | awk '{print $NF}' | head -n1 || true)
-  sirius_version=$(grep -E '^org\.eclipse\.sirius\.feature\.group[[:space:]]+' "${TMP_DIR}/installed.txt" | awk '{print $NF}' | head -n1 || true)
-  echo "[installEclipse] Found Acceleo: ${acceleo_version}"
-  echo "[installEclipse] Found Sirius: ${sirius_version}"
-  if [[ "${acceleo_version}" == "${MDE4CPP_ECLIPSE_ACCELEO_VERSION//[[:space:]]/}"* && "${sirius_version}" == "${MDE4CPP_ECLIPSE_SIRIUS_VERSION//[[:space:]]/}"* ]]; then
-    echo "[installEclipse] Requested Eclipse plugins already installed, skipping installation."
+echo "[installEclipse] Eclipse.app location : ${ECLIPSE_APP_DIR}"
+echo "[installEclipse] Eclipse home (plugins): ${ECLIPSE_HOME}"
+
+# ── Step 3: Check for existing installation ──────────────────────────────────
+
+NEEDS_DOWNLOAD=1
+
+if [[ -x "${ECLIPSE_BIN}" ]]; then
+  echo "[installEclipse] Existing Eclipse found at ${ECLIPSE_APP_DIR}."
+
+  # List installed IUs to check plugin versions.
+  "${ECLIPSE_BIN}" -nosplash \
+    -application org.eclipse.equinox.p2.director \
+    -destination "${ECLIPSE_HOME}" \
+    -listInstalledRoots > "${TMP_DIR}/installed.txt" 2>&1 || true
+
+  acceleo_installed=$(awk -F'/' '/^org\.eclipse\.acceleo\.feature\.group\// {print $2; exit}' "${TMP_DIR}/installed.txt" 2>/dev/null || true)
+  sirius_installed=$(awk -F'/' '/^org\.eclipse\.sirius\.aql\.feature\.group\// {print $2; exit}' "${TMP_DIR}/installed.txt" 2>/dev/null || true)
+  cdt_installed=$(awk -F'/' '/^org\.eclipse\.cdt\.feature\.group\// {print $2; exit}' "${TMP_DIR}/installed.txt" 2>/dev/null || true)
+
+  echo "[installEclipse] Installed Acceleo : ${acceleo_installed:-<not found>}"
+  echo "[installEclipse] Installed Sirius  : ${sirius_installed:-<not found>}"
+  echo "[installEclipse] Installed CDT     : ${cdt_installed:-<not found>}"
+
+  # Check all three plugins are present with the expected version prefixes.
+  if [[ -n "${acceleo_installed}" && "${acceleo_installed}" == "${_ACC}"* ]] \
+  && [[ -n "${sirius_installed}"  && "${sirius_installed}"  == "${_SIR}"* ]] \
+  && [[ -n "${cdt_installed}" ]]; then
+    echo "[installEclipse] All required plugins are already installed. Skipping."
     exit 0
-  else
-    echo "[installEclipse] Eclipse plugin versions differ or are missing; updating installation."
-    SKIP_DOWNLOAD=1
   fi
+
+  echo "[installEclipse] Some plugins are missing or have wrong versions. Will install plugins into existing Eclipse."
+  NEEDS_DOWNLOAD=0
 fi
 
-if [[ "$SKIP_DOWNLOAD" == "0" ]]; then
+# ── Step 4: Download and extract Eclipse ─────────────────────────────────────
+
+if [[ "${NEEDS_DOWNLOAD}" == "1" ]]; then
+  echo "[installEclipse] Downloading Eclipse from ${ECLIPSE_ARCHIVE_URL}"
+
   if command -v curl >/dev/null 2>&1; then
     curl -fL "${ECLIPSE_ARCHIVE_URL}" -o "${ARCHIVE_PATH}"
   elif command -v wget >/dev/null 2>&1; then
@@ -82,93 +130,95 @@ if [[ "$SKIP_DOWNLOAD" == "0" ]]; then
     exit 1
   fi
 
-  rm -rf "${TARGET_DIR}"
-  mkdir -p "${TARGET_DIR}"
-  tar -xzf "${ARCHIVE_PATH}" -C "${TARGET_DIR}"
+  # Remove any previous installation and extract.
+  # The macOS tarball contains Eclipse.app/ at its root, so extracting into
+  # EXTRACT_DIR (e.g. /Applications) creates /Applications/Eclipse.app.
+  rm -rf "${ECLIPSE_APP_DIR}"
+  mkdir -p "${EXTRACT_DIR}"
+  tar -xzf "${ARCHIVE_PATH}" -C "${EXTRACT_DIR}"
+
+  if [[ ! -x "${ECLIPSE_BIN}" ]]; then
+    echo "[installEclipse] ERROR: Eclipse binary not found at ${ECLIPSE_BIN} after extraction."
+    echo "[installEclipse] Contents of ${EXTRACT_DIR}:"
+    ls -la "${EXTRACT_DIR}" || true
+    exit 1
+  fi
+  echo "[installEclipse] Eclipse extracted successfully."
 else
-  echo "[installEclipse] Skipping Eclipse download/extract because existing installation is being updated."
+  echo "[installEclipse] Skipping download — using existing Eclipse installation."
 fi
 
-if [[ ! -x "${TARGET_DIR}/Eclipse.app/Contents/MacOS/eclipse" ]]; then
-  echo "[installEclipse] ERROR: Eclipse binary not found at ${TARGET_DIR}/Eclipse.app/Contents/MacOS/eclipse"
-  exit 1
-fi
+# ── Helper: install IUs with error handling ──────────────────────────────────
 
-ECLIPSE_BIN="${TARGET_DIR}/Eclipse.app/Contents/MacOS/eclipse"
+install_ius() {
+  local step_name="$1"; shift
+  local repo="$1"; shift
+  # Remaining arguments are installable unit IDs.
 
-echo "[installEclipse] Installing Acceleo from ${ACCELEO_REPOSITORY_URL}"
-"${ECLIPSE_BIN}" \
-  -nosplash \
-  -application org.eclipse.equinox.p2.director \
-  -repository "https://download.eclipse.org/releases/${MDE4CPP_ECLIPSE_VERSION//[[:space:]]/},${ACCELEO_REPOSITORY_URL}" \
-  -installIU org.eclipse.acceleo.feature.group \
-  -installIU org.eclipse.acceleo.ui.interpreter.ocl.feature.group \
-  -installIU org.eclipse.acceleo.ui.interpreter.completeocl.feature.group \
-  -installIU org.eclipse.emf.sdk.feature.group \
-  -installIU org.eclipse.uml2.sdk.feature.group \
-  -installIU org.eclipse.ocl.all.sdk.feature.group \
-  -installIU org.eclipse.acceleo.query.feature.group \
-  -installIU org.eclipse.acceleo.query.source.feature.group \
-  -installIU org.antlr.runtime \
-  -destination "${TARGET_DIR}" \
-  -profileProperties org.eclipse.update.install.features=true
+  echo "[installEclipse] Installing ${step_name}..."
+  echo "[installEclipse]   Repository: ${repo}"
 
-if [[ $? -ne 0 ]]; then
-  echo "[installEclipse] ERROR: Acceleo installation failed."
-  exit 1
-fi
+  local iu_args=()
+  for iu in "$@"; do
+    iu_args+=(-installIU "${iu}")
+  done
 
-echo "[installEclipse] Installing Sirius from ${SIRIUS_REPOSITORY_URL}"
-"${ECLIPSE_BIN}" \
-  -nosplash \
-  -application org.eclipse.equinox.p2.director \
-  -repository "https://download.eclipse.org/releases/${MDE4CPP_ECLIPSE_VERSION//[[:space:]]/},${SIRIUS_REPOSITORY_URL}" \
-  -installIU org.eclipse.sirius.common.acceleo.aql \
-  -installIU org.eclipse.sirius.ui.properties \
-  -installIU org.eclipse.sirius.aql.feature.group \
-  -installIU org.eclipse.sirius.common.acceleo.aql \
-  -installIU org.eclipse.sirius.runtime.aql.feature.group \
-  -installIU org.eclipse.sirius.properties.feature.feature.group \
-  -installIU org.eclipse.sirius.aql.source.feature.group \
-  -installIU org.eclipse.sirius.aql.feature.group \
-  -installIU org.eclipse.sirius.interpreter.feature.feature.group \
-  -installIU org.eclipse.sirius.interpreter.feature.source.feature.group \
-  -installIU org.eclipse.sirius.model.feature.source.feature.group \
-  -installIU org.eclipse.sirius.properties.feature.source.feature.group \
-  -installIU org.eclipse.sirius.runtime.aql.source.feature.group \
-  -installIU org.eclipse.sirius.runtime.ide.ui.feature.group \
-  -installIU org.eclipse.sirius.specifier.feature.group \
-  -installIU org.eclipse.sirius.specifier.ide.ui.aql.feature.group \
-  -installIU org.eclipse.sirius.specifier.ide.ui.aql.source.feature.group \
-  -installIU org.eclipse.sirius.specifier.ide.ui.feature.group \
-  -installIU org.eclipse.sirius.specifier.ide.ui.source.feature.group \
-  -installIU org.eclipse.sirius.specifier.properties.feature.feature.group \
-  -installIU org.eclipse.sirius.specifier.properties.feature.source.feature.group \
-  -installIU org.eclipse.sirius.specifier.source.feature.group \
-  -installIU org.eclipse.eef.ext.widgets.reference.feature.feature.group \
-  -installIU org.eclipse.eef.ext.widgets.reference.feature.source.feature.group \
-  -installIU org.eclipse.eef.sdk.feature.feature.group \
-  -installIU org.eclipse.eef.sdk.feature.source.feature.group \
-  -destination "${TARGET_DIR}" \
-  -profileProperties org.eclipse.update.install.features=true
+  "${ECLIPSE_BIN}" \
+    -nosplash \
+    -application org.eclipse.equinox.p2.director \
+    -repository "${repo}" \
+    "${iu_args[@]}" \
+    -destination "${ECLIPSE_HOME}" \
+    -profileProperties org.eclipse.update.install.features=true \
+  || { echo "[installEclipse] ERROR: ${step_name} installation failed."; exit 1; }
 
-if [[ $? -ne 0 ]]; then
-  echo "[installEclipse] ERROR: Sirius installation failed."
-  exit 1
-fi
+  echo "[installEclipse] ${step_name} installed successfully."
+}
 
-echo "[installEclipse] Installing CDT from ${CDT_REPOSITORY_URL}"
-"${ECLIPSE_BIN}" \
-  -nosplash \
-  -application org.eclipse.equinox.p2.director \
-  -repository "${CDT_REPOSITORY_URL}" \
-  -installIU org.eclipse.cdt.feature.group \
-  -destination "${TARGET_DIR}" \
-  -profileProperties org.eclipse.update.install.features=true
+# ── Step 5: Install Acceleo ──────────────────────────────────────────────────
 
-if [[ $? -ne 0 ]]; then
-  echo "[installEclipse] ERROR: CDT installation failed."
-  exit 1
-fi
+install_ius "Acceleo" "${RELEASES_REPO_URL},${ACCELEO_REPO_URL}" \
+  org.eclipse.acceleo.feature.group \
+  org.eclipse.acceleo.ui.interpreter.ocl.feature.group \
+  org.eclipse.acceleo.ui.interpreter.completeocl.feature.group \
+  org.eclipse.emf.sdk.feature.group \
+  org.eclipse.uml2.sdk.feature.group \
+  org.eclipse.ocl.all.sdk.feature.group \
+  org.eclipse.acceleo.query.feature.group \
+  org.eclipse.acceleo.query.source.feature.group \
+  org.antlr.runtime
 
-echo "[installEclipse] Eclipse installation finished: ${TARGET_DIR}"
+# ── Step 6: Install Sirius ───────────────────────────────────────────────────
+
+install_ius "Sirius" "${RELEASES_REPO_URL},${SIRIUS_REPO_URL}" \
+  org.eclipse.sirius.common.acceleo.aql \
+  org.eclipse.sirius.ui.properties \
+  org.eclipse.sirius.aql.feature.group \
+  org.eclipse.sirius.runtime.aql.feature.group \
+  org.eclipse.sirius.properties.feature.feature.group \
+  org.eclipse.sirius.aql.source.feature.group \
+  org.eclipse.sirius.interpreter.feature.feature.group \
+  org.eclipse.sirius.interpreter.feature.source.feature.group \
+  org.eclipse.sirius.model.feature.source.feature.group \
+  org.eclipse.sirius.properties.feature.source.feature.group \
+  org.eclipse.sirius.runtime.aql.source.feature.group \
+  org.eclipse.sirius.runtime.ide.ui.feature.group \
+  org.eclipse.sirius.specifier.feature.group \
+  org.eclipse.sirius.specifier.ide.ui.aql.feature.group \
+  org.eclipse.sirius.specifier.ide.ui.aql.source.feature.group \
+  org.eclipse.sirius.specifier.ide.ui.feature.group \
+  org.eclipse.sirius.specifier.ide.ui.source.feature.group \
+  org.eclipse.sirius.specifier.properties.feature.feature.group \
+  org.eclipse.sirius.specifier.properties.feature.source.feature.group \
+  org.eclipse.sirius.specifier.source.feature.group \
+  org.eclipse.eef.ext.widgets.reference.feature.feature.group \
+  org.eclipse.eef.ext.widgets.reference.feature.source.feature.group \
+  org.eclipse.eef.sdk.feature.feature.group \
+  org.eclipse.eef.sdk.feature.source.feature.group
+
+# ── Step 7: Install CDT ─────────────────────────────────────────────────────
+
+install_ius "CDT" "${CDT_REPO_URL}" \
+  org.eclipse.cdt.feature.group
+
+echo "[installEclipse] Eclipse installation complete: ${ECLIPSE_APP_DIR}"
