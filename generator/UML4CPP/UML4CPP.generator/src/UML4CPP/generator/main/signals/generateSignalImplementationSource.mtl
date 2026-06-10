@@ -11,6 +11,7 @@
 [import UML4CPP::generator::main::components::generateClass /]
 [import UML4CPP::generator::main::components::generateType /]
 [import UML4CPP::generator::main::components::generateSignal /]
+[import UML4CPP::generator::main::components::generateStructuralFeature /]
 [import UML4CPP::generator::main::helpers::keywords /]
 
 [template public generateSignalImplementationSource(aSignal : Signal) {signalName : String = aSignal.name.toUpperFirst().concat('Impl'); containingPackage : Package = aSignal.ancestors()->filter(Package)->first();}]

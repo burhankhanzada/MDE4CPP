@@ -94,6 +94,11 @@ task installXerces(dependsOn: downloadAndUnzipFile) {
 		}
 		cmakeCmd += '" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=' + file("./xerces/bin").absolutePath
 		
+		def isMac = System.properties['os.name'].toLowerCase().contains('mac')
+		if (isMac && !isCrossCompiling) {
+			cmakeCmd += ' -DCMAKE_DISABLE_FIND_PACKAGE_CURL=ON -DCMAKE_DISABLE_FIND_PACKAGE_ICU=ON'
+		}
+		
 		// Add cross-compilation flag if needed
 		if (isCrossCompiling) {
 			cmakeCmd += ' -DCMAKE_SYSTEM_NAME=Windows'

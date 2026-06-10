@@ -93,6 +93,13 @@ sourceSets {
 
 jar.archiveFileName = 'ecore4CPP.jar'
 
+jar {
+	from('build/classes/java/main') {
+		include 'ecore4CPP/**/*.emtl'
+		duplicatesStrategy = DuplicatesStrategy.INCLUDE
+	}
+}
+
 executableJar {
    mainClass 'ecore4CPP.generator.main.Generate'
 }

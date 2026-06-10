@@ -41,13 +41,13 @@ inline std::shared_ptr<uml::Element> uml::UMLAnyTemplate<T>::getAsElement() cons
 	{
 		try
 		{
-			returnValue = this->get<std::shared_ptr<uml::Element>>();
+			returnValue = this->template get<std::shared_ptr<uml::Element>>();
 		}
 		catch(...){}
 	}
 	if(!returnValue)
 	{
-		T anyValue=this->get<T>();
+		T anyValue=this->template get<T>();
 
 		returnValue = std::dynamic_pointer_cast<uml::Element>(anyValue);
 	}

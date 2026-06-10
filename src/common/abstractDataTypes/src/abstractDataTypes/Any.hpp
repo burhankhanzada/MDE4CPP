@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <typeinfo>
 
 class Any

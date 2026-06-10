@@ -40,13 +40,13 @@ inline std::shared_ptr<Bag<ecore::EObject>> ecore::EcoreContainerAnyTemplate<T>:
 	{
 		try
 		{
-			returnContainer = this->get<std::shared_ptr<Bag<ecore::EObject>>>();
+			returnContainer = this->template get<std::shared_ptr<Bag<ecore::EObject>>>();
 		}
 		catch(...){}
 	}
 	if(!returnContainer)
 	{
-		T anyValue=this->get<T>();
+		T anyValue=this->template get<T>();
 
 		returnContainer = std::make_shared<Bag<ecore::EObject>>();
 		for(auto anyElement : *anyValue)
