@@ -151,12 +151,12 @@
  *  if current model is a reflection model, query 'collectIncludingModelNamesForReflectionModels' is used
  *  otherwise 'collectIncludingModelNamesForNonReflectionModels' is used
 */]
-[query public collectIncludingModelNames(aPackage : Package) : Set(String) = 
+[query public collectIncludingModelNames(aPackage : Package) : OrderedSet(String) = 
 	if (
 		aPackage.isReflectionModel()
 	) 
-	then collectIncludingModelNamesForReflectionModels() 
-	else collectIncludingModelNamesForNonReflectionModels() 
+	then collectIncludingModelNamesForReflectionModels()->asOrderedSet()->sortedBy(e | e)
+	else collectIncludingModelNamesForNonReflectionModels()->asOrderedSet()->sortedBy(e | e)
 	endif/]
 
 [**
