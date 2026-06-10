@@ -1,0 +1,188 @@
+#!/usr/bin/env bash
+# Mac OS Bootstrap script for MDE4CPP
+
+set -e
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "$DIR/common.sh"
+
+PROPS_FILE="$DIR/../versions.properties"
+load_properties "$PROPS_FILE"
+
+TOOLS_DIR="$HOME/mde4cpp-tools"
+mkdir -p "$TOOLS_DIR"
+
+ZSHRC="$HOME/.zshrc"
+
+echo "Checking Homebrew..."
+if ! command -v brew &> /dev/null; then
+    echo "Homebrew not found. Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv 2>/dev/null)"
+else
+    echo "Homebrew is installed."
+fi
+
+# 1. Java
+JAVA_MAJOR="${MDE4CPP_JAVA_VERSION%%.*}"
+echo "Checking Java $JAVA_MAJOR..."
+if /usr/libexec/java_home -v "$JAVA_MAJOR" &> /dev/null; then
+    echo "Java $JAVA_MAJOR is already installed."
+else
+    echo "Installing Java $JAVA_MAJOR via Homebrew..."
+    brew install openjdk@$JAVA_MAJOR
+    # Link it so system java wrapper can find it
+    sudo ln -sfn /opt/homebrew/opt/openjdk@$JAVA_MAJOR/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-$JAVA_MAJOR.jdk || true
+fi
+
+# 2. GCC
+GCC_MAJOR="${MDE4CPP_COMPILER_VERSION%%.*}"
+echo "Checking GCC major version $GCC_MAJOR..."
+if command -v g++-$GCC_MAJOR &> /dev/null; then
+    echo "GCC $GCC_MAJOR is already installed."
+else
+    echo "Installing GCC $GCC_MAJOR via Homebrew..."
+    brew install gcc@$GCC_MAJOR
+fi
+
+# 3. CMake
+CMAKE_MAJOR_MINOR="${MDE4CPP_CMAKE_VERSION}"
+echo "Checking CMake..."
+INSTALLED_CMAKE_VER=""
+if command -v cmake &> /dev/null; then
+    INSTALLED_CMAKE_VER=$(cmake --version | head -n1 | awk '{print $3}')
+fi
+
+if [[ "$INSTALLED_CMAKE_VER" == "$CMAKE_MAJOR_MINOR"* ]]; then
+    echo "CMake $INSTALLED_CMAKE_VER is already installed and matches required version."
+else
+    echo "CMake version mismatch or not installed. Required: $CMAKE_MAJOR_MINOR. Installing via Homebrew..."
+    # As brew installs the latest, we just ensure it's installed. 
+    # To strictly match, we would download Kitware binaries, but brew is generally preferred for Mac if major version is okay.
+    brew install cmake
+fi
+
+# 4. Eclipse
+ECLIPSE_VER="${MDE4CPP_ECLIPSE_VERSION}"
+ECLIPSE_MILESTONE="${MDE4CPP_ECLIPSE_MILESTONE}"
+# Install to the parent directory of MDE4CPP as MDE4CPP-Eclipse
+ECLIPSE_DIR="$(cd "$DIR/../.." && pwd)/MDE4CPP-Eclipse"
+
+if [ -d "$ECLIPSE_DIR/Eclipse.app" ]; then
+    echo "Eclipse appears to be installed at $ECLIPSE_DIR/Eclipse.app."
+else
+    echo "Downloading and installing Eclipse Modeling $ECLIPSE_VER..."
+    ARCH=$(uname -m)
+    if [ "$ARCH" = "arm64" ]; then
+        MAC_ARCH="aarch64"
+    else
+        MAC_ARCH="x86_64"
+    fi
+    ECLIPSE_URL="https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/${ECLIPSE_VER}/${ECLIPSE_MILESTONE}/eclipse-modeling-${ECLIPSE_VER}-${ECLIPSE_MILESTONE}-macosx-cocoa-${MAC_ARCH}.dmg&r=1"
+    
+    echo "Downloading Eclipse from $ECLIPSE_URL"
+    TMP_DMG="/tmp/eclipse-mde4cpp.dmg"
+    curl -L "$ECLIPSE_URL" -o "$TMP_DMG"
+    
+    echo "Mounting DMG..."
+    hdiutil attach "$TMP_DMG" -mountpoint /Volumes/EclipseInstall -quiet
+    echo "Copying Eclipse.app to $ECLIPSE_DIR..."
+    mkdir -p "$ECLIPSE_DIR"
+    cp -a /Volumes/EclipseInstall/Eclipse.app "$ECLIPSE_DIR/"
+    hdiutil detach /Volumes/EclipseInstall -quiet
+    rm "$TMP_DMG"
+fi
+
+# 5. Eclipse Plugins (Acceleo, Sirius)
+echo "Checking Eclipse Plugins..."
+ECLIPSE_EXEC="$ECLIPSE_DIR/Eclipse.app/Contents/MacOS/eclipse"
+
+# Define plugin repos based on versions
+ACCELEO_REPO="https://download.eclipse.org/acceleo/updates/releases/${MDE4CPP_ECLIPSE_ACCELEO_VERSION}"
+SIRIUS_REPO="https://download.eclipse.org/sirius/updates/releases/${MDE4CPP_ECLIPSE_SIRIUS_VERSION}/${MDE4CPP_ECLIPSE_SIRIUS_ECLIPSE_VERSION}"
+
+# Install plugins using headless director
+echo "Installing/Updating Acceleo ($MDE4CPP_ECLIPSE_ACCELEO_VERSION)..."
+"$ECLIPSE_EXEC" -noSplash -application org.eclipse.equinox.p2.director \
+    -repository "$ACCELEO_REPO" \
+    -installIU org.eclipse.acceleo.feature.group
+
+echo "Installing/Updating Sirius ($MDE4CPP_ECLIPSE_SIRIUS_VERSION)..."
+"$ECLIPSE_EXEC" -noSplash -application org.eclipse.equinox.p2.director \
+    -repository "$SIRIUS_REPO" \
+    -installIU org.eclipse.sirius.runtime.feature.group \
+    -installIU org.eclipse.sirius.runtime.ide.ui.feature.group
+
+# 6. Environment Variables Setup
+echo "Configuring ~/.zshrc..."
+
+BLOCK_START="# MDE4CPP_ENV_START"
+BLOCK_END="# MDE4CPP_ENV_END"
+
+# Remove existing block if any
+if grep -q "$BLOCK_START" "$ZSHRC" 2>/dev/null; then
+    sed -i '' "/$BLOCK_START/,/$BLOCK_END/d" "$ZSHRC"
+fi
+
+JAVA_HOME_PATH=$(/usr/libexec/java_home -v "$JAVA_MAJOR" 2>/dev/null || echo "/opt/homebrew/opt/openjdk@$JAVA_MAJOR")
+
+PROJECT_DIR="$(cd "$DIR/.." && pwd)"
+
+# Append new block
+cat << EOF >> "$ZSHRC"
+$BLOCK_START
+# Generated by MDE4CPP Bootstrap script
+export JAVA_HOME="$JAVA_HOME_PATH"
+export CC="gcc-$GCC_MAJOR"
+export CXX="g++-$GCC_MAJOR"
+export PATH="$ECLIPSE_DIR/Eclipse.app/Contents/MacOS:\$PATH"
+
+# Set MDE4CPP project and eclipse directories
+export MDE4CPP_HOME="$PROJECT_DIR"
+# On macOS, Eclipse plugins are located inside Eclipse.app/Contents/Eclipse
+export MDE4CPP_ECLIPSE_HOME="$ECLIPSE_DIR/Eclipse.app/Contents/Eclipse"
+
+# ##################################################
+# # configure Gradle tasks and compiling processes #
+# ##################################################
+
+# enable parallel execution of Gradle tasks permanently with value 'true', otherwise 'false'
+export GRADLE_OPTS=-Dorg.gradle.parallel=true
+
+# configure count of worker for each compile task 
+# (if two compiling tasks are performed in parallel, 2 x WORKER processes are executed)
+export ORG_GRADLE_PROJECT_WORKER=1
+
+# release version will be compiled with value unequal '0' or if ORG_GRADLE_PROJECT_RELEASE and ORG_GRADLE_PROJECT_DEBUG are undefined
+export ORG_GRADLE_PROJECT_RELEASE=1
+
+# debug version will be compiled with value unequal '0' or if ORG_GRADLE_PROJECT_RELEASE and ORG_GRADLE_PROJECT_DEBUG are undefined
+export ORG_GRADLE_PROJECT_DEBUG=1
+
+# debug messages of fUML library will be enabled with value '1', this property has no effect on release compiling
+export ORG_GRADLE_PROJECT_DEBUG_MESSAGE_FUML=0
+
+# #############################
+# # configure LD_LIBRARY_PATH #
+# #############################
+
+export LD_LIBRARY_PATH="\$LD_LIBRARY_PATH:\$MDE4CPP_HOME/application/bin"
+
+# #############################################################################
+# # Configure JAVA CLASSPATH                                                  #
+# #############################################################################
+
+export CLASSPATH="\$MDE4CPP_ECLIPSE_HOME/plugins"
+
+# ##############################################################################
+# # configure compiler information for include path setting inside cpp eclipse #
+# ##############################################################################
+
+export CPP_IDE_EXECUTABLE="\$MDE4CPP_ECLIPSE_HOME"
+$BLOCK_END
+EOF
+
+echo "==========================================================="
+echo "Bootstrap completed successfully!"
+echo "Please restart your terminal or run: source ~/.zshrc"
+echo "==========================================================="
