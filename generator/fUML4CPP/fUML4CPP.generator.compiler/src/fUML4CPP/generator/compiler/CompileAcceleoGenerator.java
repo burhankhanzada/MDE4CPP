@@ -202,39 +202,28 @@ public class CompileAcceleoGenerator
             		return;
             	}
             	
-		        CompileAcceleoGenerator compiler = new CompileAcceleoGenerator();
-            	if (file.isDirectory())
-            	{
-            		compiler.deleteExistingEmtlFiles(file);
-            	}
-
-            	// generate emtl file of fUML4CPP
-            	File binFolder = new File(dependency + File.separator + "UML4CPP.generator" + File.separator + "bin");
-            	if (binFolder.isDirectory())
-            	{
-            		compiler.deleteExistingEmtlFiles(binFolder);
-            	}
-		        compiler.setSourceFolder(dependency + File.separator + "UML4CPP.generator" + File.separator +"src");
-		        compiler.setOutputFolder(dependency + File.separator + "UML4CPP.generator" + File.separator + "bin");
-		        compiler.setBinaryResource(false);
-		        compiler.execute();
-		        
-		        compiler.setOutputFolder(targetFolder);
-		        compiler.setBinaryResource(false);
-		        compiler.execute();
+            	String dependencyFolder = dependency + File.separator + "UML4CPP.generator" + File.separator + "build" + File.separator + "classes" + File.separator + "java" + File.separator + "main";
+            	
+            	System.out.println("fUML4CPP Compiler Executing...");
+            	System.out.println("SourceFolder: " + srcFolder);
+            	System.out.println("OutputFolder: " + targetFolder);
+            	System.out.println("Dependencies: " + dependencyFolder);
             	
             	// generate emtl file of fUML4CPP
-		        compiler = new CompileAcceleoGenerator();
+		        CompileAcceleoGenerator compiler = new CompileAcceleoGenerator();
 		        compiler.setSourceFolder(srcFolder);
 		        compiler.setOutputFolder(targetFolder);
 		        compiler.setBinaryResource(false);
-	        	compiler.setDependencies(dependency);
+	        	compiler.setDependencies(dependencyFolder);
 		        compiler.execute();
+		        
+		        System.out.println("fUML4CPP Compiler Finished");
             }
         }
         catch (Exception e)
         {
         	e.printStackTrace();
+			System.exit(1);
         }
 	}
 	 

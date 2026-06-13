@@ -102,14 +102,19 @@ sourceSets {
 
 jar.archiveFileName = 'fUML4CPP.jar'
 
-// Explicitly include .emtl files in the jar (required for Acceleo template execution)
-// this should not be necessary if path are set, and plugins are build 
-//jar {
-//	from('build/classes/java/main') {
-//		include 'fUML4CPP/**/*.emtl'
-//		duplicatesStrategy = DuplicatesStrategy.INCLUDE
-//	}
-//}
+jar {
+	dependsOn getRootProject().getTasksByName('executeGeneratorCompiler_fUML4CPP', true)
+	dependsOn ':generator:UML4CPP:buildGenerator_UML4CPP'
+	dependsOn ':generator:UML4CPP:UML4CPP.generator:compileJava'
+	from('build/classes/java/main') {
+		include 'fUML4CPP/**/*.emtl'
+		duplicatesStrategy = DuplicatesStrategy.INCLUDE
+	}
+	from('../../UML4CPP/UML4CPP.generator/build/classes/java/main') {
+		include 'UML4CPP/**/*.emtl'
+		duplicatesStrategy = DuplicatesStrategy.INCLUDE
+	}
+}
 
 executableJar {
    mainClass 'fUML4CPP.generator.main.GenerateFUML'

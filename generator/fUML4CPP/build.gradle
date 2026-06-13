@@ -80,6 +80,7 @@ task executeGeneratorCompiler_fUML4CPP(type: JavaExec) {
 	
 	dependsOn tasks.getByPath('checkDependencies')
 	dependsOn tasks.getByPath('fUML4CPP.generator.compiler:jar')
+	dependsOn getRootProject().getTasksByName('executeGeneratorCompiler_UML4CPP', true)
 	
 	tasks.getByPath('fUML4CPP.generator.compiler:jar').mustRunAfter tasks.getByPath('checkDependencies')
 }

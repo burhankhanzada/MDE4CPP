@@ -52,7 +52,7 @@ task runCommandCompile[packageName.toUpperFirst()/](type:Exec) {[comment interna
 	dependsOn 'generate[packageName.toUpperFirst()/]'
 [comment	[aPackage.generateDependsOnForRunCommand()/]
 [comment	[aPackage.generateInputsFilesForRunCommand()/]
-[comment	[aPackage.generateMustRunAfter()/]
+	[aPackage.generateMustRunAfter()/]
 }
 
 task generate[packageName.toUpperFirst()/](type: tui.sse.mde4cpp.MDE4CPPGenerate) {
