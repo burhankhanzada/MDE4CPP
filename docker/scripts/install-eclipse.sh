@@ -13,7 +13,7 @@ set -a
 source "${MDE4CPP_HOME}/versions.properties"
 set +a
 
-ECLIPSE_DIR="${MDE4CPP_HOME}/eclipse"
+ECLIPSE_DIR="${MDE4CPP_ECLIPSE_TARGET_DIR}"
 ECLIPSE_BIN="${ECLIPSE_DIR}/eclipse"
 
 if [ ! -f "${ECLIPSE_BIN}" ]; then

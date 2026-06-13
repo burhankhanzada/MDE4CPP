@@ -38,8 +38,19 @@ echo ""
 # Clean CMake cache files before building
 ./docker/scripts/clean-cmake.sh
 
-# Step 1: Generate all models
-echo "Step 1/3: Running generateAll..."
+# Step 1: Create all generators
+echo "Step 1/4: Running generator:createAllGenerators..."
+echo "----------------------------------------"
+if ! "$GRADLEW" generator:createAllGenerators --no-daemon; then
+    echo ""
+    echo "ERROR: generator:createAllGenerators failed!"
+    exit 1
+fi
+echo "✓ generator:createAllGenerators completed successfully"
+echo ""
+
+# Step 2: Generate all models
+echo "Step 2/4: Running generateAll..."
 echo "----------------------------------------"
 if ! "$GRADLEW" generateAll --no-daemon; then
     echo ""
@@ -49,8 +60,8 @@ fi
 echo "✓ generateAll completed successfully"
 echo ""
 
-# Step 2: Compile all generated code
-echo "Step 2/3: Running compileAll..."
+# Step 3: Compile all generated code
+echo "Step 3/4: Running compileAll..."
 echo "----------------------------------------"
 if ! "$GRADLEW" compileAll --no-daemon; then
     echo ""
@@ -60,8 +71,8 @@ fi
 echo "✓ compileAll completed successfully"
 echo ""
 
-# Step 3: Build OCL components
-echo "Step 3/3: Running src:buildOCLAll..."
+# Step 4: Build OCL components
+echo "Step 4/4: Running src:buildOCLAll..."
 echo "----------------------------------------"
 if ! "$GRADLEW" src:buildOCLAll --no-daemon; then
     echo ""

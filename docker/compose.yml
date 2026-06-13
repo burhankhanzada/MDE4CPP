@@ -107,7 +107,7 @@ services:
     profiles: ["setup"]
     <<: *base-service
     container_name: mde4cpp-generate
-    command: ./application/tools/gradlew generateAll --no-daemon
+    command: ./application/tools/gradlew generator:createAllGenerators generateAll --no-daemon
   # Compile all generated code
   # Usage: docker compose up compile
   compile:

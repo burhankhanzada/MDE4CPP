@@ -50,6 +50,11 @@ task generateAll() {
 	dependsOn 'src:generateReflectionModels'
 	dependsOn 'src:generateUMLProfiles'
 	dependsOn 'src:common:FoundationalModelLibrary:generateFoundationalModelLibrary'
+	
+	tasks.getByPath('src:generateEcoreModels').mustRunAfter tasks.getByPath('generator:createAllGenerators')
+	tasks.getByPath('src:generateReflectionModels').mustRunAfter tasks.getByPath('generator:createAllGenerators')
+	tasks.getByPath('src:generateUMLProfiles').mustRunAfter tasks.getByPath('generator:createAllGenerators')
+	tasks.getByPath('src:common:FoundationalModelLibrary:generateFoundationalModelLibrary').mustRunAfter tasks.getByPath('generator:createAllGenerators')
 }
 
 task compileCommonTools()

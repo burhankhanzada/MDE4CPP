@@ -10,11 +10,11 @@
 
 # Number of parallel make jobs (1 = single-threaded, 2+ = parallel)
 # Lower values use less memory. Recommended: 1 for 8GB RAM, 2-3 for 16GB+ RAM
-export WORKER_COUNT=3
+export WORKER_COUNT=2
 
 # Enable Gradle parallel execution (true/false)
 # Set to false for low-memory systems (8GB RAM or less)
-export GRADLE_PARALLEL=true
+export GRADLE_PARALLEL=false
 
 # Path configurations for Docker
 export PROJECT_DIR="/home/mde4cpp"
